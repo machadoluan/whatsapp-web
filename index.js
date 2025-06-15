@@ -5,8 +5,19 @@ const whatsappService = require('./services/services');
 const app = express();
 
 const cors = require('cors');
+const allowedOrigins = ['https://pwm.devmchd.space', 'http://localhost:4200'];
+
 app.use(cors({
-    origin: 'http://localhost:4200'
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: 'Content-Type, Accept, Authorization',
+    credentials: true
 }));
 
 // Middleware para parsear JSON
