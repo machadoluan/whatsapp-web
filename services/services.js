@@ -66,22 +66,23 @@ class WhatsappService extends EventEmitter {
             console.log('🔄 Autenticado com sucesso!');
         });
 
-        this.client.on('auth_failure', (msg) => {
+        this.client.on('auth_failure', async (msg) => {
             console.error('❌ Falha na autenticação:', msg);
+
+            try {
+                await this.cleanSession(); // Aqui pode limpar
+            } catch (err) {
+                console.error('Erro ao limpar sessão após falha de auth:', err.message);
+            }
+
+            this.retryConnection();
         });
+
 
         this.client.on('disconnected', async (reason) => {
             console.log(`⚠️ Desconectado: ${reason}`);
-            this.isReady = false;
-            this.qrCode = null;
 
-            try {
-                // Limpa a sessão corretamente
-                await this.cleanSession();
-            } catch (cleanError) {
-                console.error('Erro ao limpar sessão:', cleanError);
-            }
-
+            // Evita apagar sessão aqui
             this.retryConnection();
         });
     }
@@ -103,16 +104,29 @@ class WhatsappService extends EventEmitter {
 
     async retryConnection() {
         console.log('Tentando reconectar...');
-        await setTimeout(5000); // Espera 5 segundos
 
         try {
-            await this.cleanSession();
-            this.initializeClient();
+            if (this.client) {
+                console.log('Destruindo cliente antigo...');
+                await this.client.destroy();
+            }
+
+            this.isReady = false;
+            this.qrCode = null;
+
+            // Aguarda um pouco antes de tentar de novo
+            await setTimeout(5000);
+
+            console.log('Inicializando novo cliente...');
+            await this.initializeClient();
         } catch (err) {
-            console.error('Erro na reconexão:', err);
-            this.retryConnection(); // Tenta novamente
+            console.error('Erro na reconexão:', err.message);
+            // Tenta novamente após atraso
+            await setTimeout(10000);
+            this.retryConnection();
         }
     }
+
 
     getQrCode() {
         return { qrCode: this.qrCode, isReady: this.isReady };
